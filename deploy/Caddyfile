@@ -1,0 +1,21 @@
+# VPS production (HTTPS) template
+# - Replace the domain and email before running.
+# - DNS A/AAAA must point to the VPS and ports 80/443 must be reachable.
+
+{
+    email you@your-real-domain.example
+}
+
+your-domain.example {
+    encode gzip
+
+    # Reverse proxy to the API container
+    reverse_proxy api:8080
+
+    # Basic security headers (minimal)
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy no-referrer
+    }
+}
