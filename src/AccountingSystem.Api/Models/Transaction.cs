@@ -2,7 +2,7 @@ namespace AccountingSystem.Api.Models;
 
 public sealed class Transaction
 {
-    public Guid Id { get; set; }
+    public long Id { get; set; }
 
     public Guid CompanyId { get; set; }
 

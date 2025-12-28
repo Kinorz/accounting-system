@@ -163,9 +163,11 @@ namespace AccountingSystem.Api.Data.Migrations
 
             modelBuilder.Entity("AccountingSystem.Api.Models.EntryLine", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<Guid>("AccountId")
                         .HasColumnType("uuid");
@@ -190,8 +192,8 @@ namespace AccountingSystem.Api.Data.Migrations
                     b.Property<short>("Side")
                         .HasColumnType("smallint");
 
-                    b.Property<Guid>("TransactionId")
-                        .HasColumnType("uuid");
+                    b.Property<long>("TransactionId")
+                        .HasColumnType("bigint");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamptz");
@@ -248,9 +250,11 @@ namespace AccountingSystem.Api.Data.Migrations
 
             modelBuilder.Entity("AccountingSystem.Api.Models.Transaction", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<Guid>("CompanyId")
                         .HasColumnType("uuid");

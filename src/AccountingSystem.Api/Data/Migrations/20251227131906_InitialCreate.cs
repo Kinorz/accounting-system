@@ -236,7 +236,8 @@ namespace AccountingSystem.Api.Data.Migrations
                 name: "transactions",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
                     TransactionDate = table.Column<DateOnly>(type: "date", nullable: false),
                     Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
@@ -265,8 +266,9 @@ namespace AccountingSystem.Api.Data.Migrations
                 name: "entry_lines",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    TransactionId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    TransactionId = table.Column<long>(type: "bigint", nullable: false),
                     LineNumber = table.Column<int>(type: "integer", nullable: false),
                     AccountId = table.Column<Guid>(type: "uuid", nullable: false),
                     PartnerId = table.Column<Guid>(type: "uuid", nullable: true),

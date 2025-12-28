@@ -93,6 +93,8 @@ public sealed class AccountingDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.ToTable("transactions");
             entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id)
+                .ValueGeneratedOnAdd();
             entity.Property(x => x.TransactionDate).HasColumnType("date");
             entity.Property(x => x.Description).HasMaxLength(500);
             entity.Property(x => x.CreatedByUserId).HasMaxLength(450);
@@ -120,6 +122,8 @@ public sealed class AccountingDbContext : IdentityDbContext<ApplicationUser>
                 t.HasCheckConstraint("CK_entry_lines_amount_positive", "\"Amount\" > 0");
             });
             entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id)
+                .ValueGeneratedOnAdd();
             entity.Property(x => x.Side).HasConversion<short>();
             entity.Property(x => x.Amount).HasPrecision(18, 2);
             entity.Property(x => x.Memo).HasMaxLength(1000);

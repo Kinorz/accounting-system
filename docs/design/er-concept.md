@@ -87,9 +87,17 @@ erDiagram
     }
 ```
 
-## Constraints (EF Core / SQL Server)
+## Constraints (EF Core / PostgreSQL)
 
-MermaidのER図は概念共有が主目的のため、制約・インデックスはEF Coreのモデル設定で表現し、MigrationでSQL Serverへ反映する想定。
+MermaidのER図は概念共有が主目的のため、制約・インデックスはEF Coreのモデル設定で表現し、MigrationでDBへ反映する想定。
+
+このリポジトリの現状の実装は PostgreSQL（Npgsql）前提。
+
+- ID: 基本は `uuid`（.NET側は`Guid`）
+    - 例外: `transactions.Id` と `entry_lines.Id` は `bigint` の自動採番（.NET側は`long`）
+- 日時: `timestamptz`（.NET側は`DateTimeOffset`）
+- 日付: `date`（.NET側は`DateOnly`）
+- 金額: `numeric(18,2)`（要件に応じて調整）
 
 - 主キー: 各テーブルは`Id`（サロゲートキー）
 - 複合主キーは使わず、必要な一意性は複合UNIQUE（ユニークインデックス）で担保
@@ -107,9 +115,9 @@ MermaidのER図は概念共有が主目的のため、制約・インデック�
 ### 推奨チェック制約（CHECK）
 
 - EntryLine.Side: `1 = debit (借方)`, `2 = credit (貸方)`
-  - SQL Server: `CHECK ([Side] IN (1, 2))`
-- Partner.PartnerType: `1 = customer (得意先)`, `2 = vendor (仕入先/支払先)`, `3 = both (両方)`
-    - SQL Server: `CHECK ([PartnerType] IN (1, 2, 3))`
+    - 例: `CHECK ("Side" IN (1, 2))`
+- Partner.PartnerType: `1 = customer (得意先)`, `2 = vendor (仕入先/支払先)`
+        - 例: `CHECK ("PartnerType" IN (1, 2))`
 - EntryLine.Amount: 0より大きい前提なら `CHECK ([Amount] > 0)`
   - 返品/訂正などでマイナスを許す設計なら、この制約は付けない
 
@@ -129,13 +137,13 @@ MermaidのER図は概念共有が主目的のため、制約・インデック�
     - 未使用=その科目を参照する`EntryLine`が0件
     - 使用済みの場合は移動不可とし、必要なら新科目を作成して旧科目を`is_active=false`で無効化する
 
-### SQL Server向けの型（例）
+### PostgreSQL向けの型（例）
 
-- 金額: `decimal(19, 4)`（要件に応じて`(18, 2)`等へ調整）
-- 日時: `datetimeoffset(7)`（UTC/タイムゾーン対応をしたい場合）
+- 金額: `numeric(18,2)`（要件に応じて調整）
+- 日時: `timestamptz`（UTC/タイムゾーン対応をしたい場合）
 
 ### UTC/タイムゾーン運用メモ
 
 - .NET側の型は`DateTimeOffset`を推奨（オフセットを保持できる）
 - DBには`datetimeoffset`で保存し、運用としてはUTCで統一する（表示時にローカルへ変換）
-- DB既定値を使う場合は`SYSDATETIMEOFFSET()`を使用
+- DB既定値を使う場合は`now()`を使用

@@ -36,6 +36,23 @@ public sealed class AuthController : ControllerBase
             return BadRequest("Email, Password, CompanyName are required.");
         }
 
+        var normalizedEmail = request.Email.Trim();
+        var existingUser = await _userManager.FindByEmailAsync(normalizedEmail);
+        if (existingUser is not null)
+        {
+            return Conflict(new ProblemDetails
+            {
+                Title = "User already exists",
+                Detail = $"A user with email '{normalizedEmail}' already exists. Use /auth/login instead.",
+                Status = StatusCodes.Status409Conflict,
+            });
+        }
+
+        if (!TryGetJwtSettings(out var issuer, out var audience, out var signingKey, out var expiresMinutes, out var jwtError))
+        {
+            return Problem(title: "JWT is not configured", detail: jwtError, statusCode: StatusCodes.Status500InternalServerError);
+        }
+
         IDbContextTransaction? tx = null;
         if (_db.Database.IsRelational())
         {
@@ -45,41 +62,41 @@ public sealed class AuthController : ControllerBase
         try
         {
 
-        var company = new Company
-        {
-            Id = Guid.NewGuid(),
-            Name = request.CompanyName.Trim(),
-        };
-
-        _db.Companies.Add(company);
-        await _db.SaveChangesAsync(cancellationToken);
-
-        var user = new ApplicationUser
-        {
-            UserName = request.Email.Trim(),
-            Email = request.Email.Trim(),
-            CompanyId = company.Id,
-        };
-
-        var createResult = await _userManager.CreateAsync(user, request.Password);
-        if (!createResult.Succeeded)
-        {
-            var details = new ValidationProblemDetails
+            var company = new Company
             {
-                Title = "User creation failed",
-                Detail = string.Join("; ", createResult.Errors.Select(e => $"{e.Code}:{e.Description}")),
+                Id = Guid.NewGuid(),
+                Name = request.CompanyName.Trim(),
             };
 
-            return ValidationProblem(details);
-        }
+            _db.Companies.Add(company);
+            await _db.SaveChangesAsync(cancellationToken);
 
-        if (tx is not null)
-        {
-            await tx.CommitAsync(cancellationToken);
-        }
+            var user = new ApplicationUser
+            {
+                UserName = normalizedEmail,
+                Email = normalizedEmail,
+                CompanyId = company.Id,
+            };
 
-        var token = CreateJwt(user);
-        return Ok(token);
+            var createResult = await _userManager.CreateAsync(user, request.Password);
+            if (!createResult.Succeeded)
+            {
+                var details = new ValidationProblemDetails
+                {
+                    Title = "User creation failed",
+                    Detail = string.Join("; ", createResult.Errors.Select(e => $"{e.Code}:{e.Description}")),
+                };
+
+                return ValidationProblem(details);
+            }
+
+            if (tx is not null)
+            {
+                await tx.CommitAsync(cancellationToken);
+            }
+
+            var token = CreateJwt(user, issuer, audience, signingKey, expiresMinutes);
+            return Ok(token);
 
         }
         finally
@@ -99,6 +116,11 @@ public sealed class AuthController : ControllerBase
             return BadRequest("Email and Password are required.");
         }
 
+        if (!TryGetJwtSettings(out var issuer, out var audience, out var signingKey, out var expiresMinutes, out var jwtError))
+        {
+            return Problem(title: "JWT is not configured", detail: jwtError, statusCode: StatusCodes.Status500InternalServerError);
+        }
+
         var normalizedEmail = request.Email.Trim();
         var user = await _userManager.FindByEmailAsync(normalizedEmail);
         if (user is null)
@@ -112,7 +134,7 @@ public sealed class AuthController : ControllerBase
             return Unauthorized();
         }
 
-        var token = CreateJwt(user);
+        var token = CreateJwt(user, issuer, audience, signingKey, expiresMinutes);
         return Ok(token);
     }
 
@@ -127,19 +149,8 @@ public sealed class AuthController : ControllerBase
         return Ok(new { userId, email, companyId });
     }
 
-    private TokenResponse CreateJwt(ApplicationUser user)
+    private static TokenResponse CreateJwt(ApplicationUser user, string issuer, string audience, string signingKey, int expiresMinutes)
     {
-        var issuer = _configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("Jwt:Issuer is not configured.");
-        var audience = _configuration["Jwt:Audience"] ?? throw new InvalidOperationException("Jwt:Audience is not configured.");
-        var signingKey = _configuration["Jwt:SigningKey"] ?? throw new InvalidOperationException("Jwt:SigningKey is not configured.");
-
-        var expiresMinutesText = _configuration["Jwt:AccessTokenMinutes"];
-        var expiresMinutes = 60;
-        if (!string.IsNullOrWhiteSpace(expiresMinutesText) && int.TryParse(expiresMinutesText, out var parsed))
-        {
-            expiresMinutes = parsed;
-        }
-
         var now = DateTimeOffset.UtcNow;
         var expires = now.AddMinutes(expiresMinutes);
 
@@ -165,5 +176,38 @@ public sealed class AuthController : ControllerBase
 
         var token = new JwtSecurityTokenHandler().WriteToken(jwt);
         return new TokenResponse(token, expires);
+    }
+
+    private bool TryGetJwtSettings(
+        out string issuer,
+        out string audience,
+        out string signingKey,
+        out int expiresMinutes,
+        out string? error)
+    {
+        issuer = _configuration["Jwt:Issuer"] ?? string.Empty;
+        audience = _configuration["Jwt:Audience"] ?? string.Empty;
+        signingKey = _configuration["Jwt:SigningKey"] ?? string.Empty;
+
+        expiresMinutes = 60;
+        var expiresMinutesText = _configuration["Jwt:AccessTokenMinutes"];
+        if (!string.IsNullOrWhiteSpace(expiresMinutesText) && int.TryParse(expiresMinutesText, out var parsed))
+        {
+            expiresMinutes = parsed;
+        }
+
+        if (string.IsNullOrWhiteSpace(issuer) || string.IsNullOrWhiteSpace(audience) || string.IsNullOrWhiteSpace(signingKey))
+        {
+            error = "Missing JWT settings. Configure Jwt:Issuer, Jwt:Audience, Jwt:SigningKey (and optionally Jwt:AccessTokenMinutes). " +
+                    "For local dev you can use User Secrets: " +
+                    "dotnet user-secrets set \"Jwt:Issuer\" \"http://localhost\"; " +
+                    "dotnet user-secrets set \"Jwt:Audience\" \"http://localhost\"; " +
+                    "dotnet user-secrets set \"Jwt:SigningKey\" \"<long-random-string>\". " +
+                    "Or set env vars: Jwt__Issuer, Jwt__Audience, Jwt__SigningKey.";
+            return false;
+        }
+
+        error = null;
+        return true;
     }
 }

@@ -2,9 +2,9 @@ namespace AccountingSystem.Api.Models;
 
 public sealed class EntryLine
 {
-    public Guid Id { get; set; }
+    public long Id { get; set; }
 
-    public Guid TransactionId { get; set; }
+    public long TransactionId { get; set; }
 
     public Transaction Transaction { get; set; } = null!;
 

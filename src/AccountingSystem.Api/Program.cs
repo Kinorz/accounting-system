@@ -10,6 +10,15 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Optional: in Development, allow using deploy/.env.dev for local config.
+// This is intentionally "missing-keys only" so User Secrets / env vars still win.
+if (builder.Environment.IsDevelopment())
+{
+    DotEnv.AddMissingKeys(
+        builder.Configuration,
+        Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "..", "deploy", ".env.dev")));
+}
+
 // Add services to the container.
 
 // Configure DbContext
@@ -88,3 +97,61 @@ app.MapControllers();
 app.Run();
 
 public partial class Program;
+
+internal static class DotEnv
+{
+    public static void AddMissingKeys(ConfigurationManager configuration, string path)
+    {
+        if (!File.Exists(path))
+        {
+            return;
+        }
+
+        var added = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var rawLine in File.ReadLines(path))
+        {
+            var line = rawLine.Trim();
+            if (line.Length == 0 || line.StartsWith('#'))
+            {
+                continue;
+            }
+
+            var equalsIndex = line.IndexOf('=');
+            if (equalsIndex <= 0)
+            {
+                continue;
+            }
+
+            var rawKey = line[..equalsIndex].Trim();
+            var rawValue = line[(equalsIndex + 1)..].Trim();
+
+            // Allow optional surrounding quotes.
+            if (rawValue.Length >= 2 && ((rawValue.StartsWith('"') && rawValue.EndsWith('"')) || (rawValue.StartsWith('\'') && rawValue.EndsWith('\''))))
+            {
+                rawValue = rawValue[1..^1];
+            }
+
+            // Map env var style (Foo__Bar) to configuration key style (Foo:Bar)
+            var key = rawKey.Contains("__", StringComparison.Ordinal)
+                ? rawKey.Replace("__", ":", StringComparison.Ordinal)
+                : rawKey;
+
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                continue;
+            }
+
+            // Only add when missing; don't override User Secrets / env vars.
+            if (configuration[key] is null)
+            {
+                added[key] = rawValue;
+            }
+        }
+
+        if (added.Count > 0)
+        {
+            configuration.AddInMemoryCollection(added);
+        }
+    }
+}

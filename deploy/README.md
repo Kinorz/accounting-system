@@ -35,6 +35,13 @@ dotnet user-secrets set "Jwt:SigningKey" "replace-with-a-long-random-string"
 dotnet user-secrets set "Jwt:AccessTokenMinutes" "60"
 ```
 
+### 代替（Developmentでも env で統一したい場合）
+
+`deploy/.env.dev` に `CONNECTIONSTRINGS__DEFAULT` と `Jwt__*` を書いておけば、Development 実行時に API が自動で読み込みます。
+
+- `.env.dev` は gitignore 済みなので、秘密情報をコミットしません
+- User Secrets / 環境変数が設定されている場合は、そちらが優先されます（`.env.dev` は「足りないキーだけ」補います）
+
 4. VSで `AccountingSystem.Api` をF5起動して、Postman/ブラウザから `http://localhost:<VSのポート>/...` を呼び出す
 
 ## テスト実行について
@@ -75,3 +82,10 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 - DBデータは `pg_data` ボリュームに保存されます。
 - 本番相当ではバックアップを必ず別ストレージへ退避してください。
+
+### `.env.prod` に秘密情報を入れてよいか
+
+入れてOKです（むしろ Compose 運用では一般的です）。ただし **絶対に Git にコミットしない/共有しない** ことが前提です。
+
+- このリポジトリでは `deploy/.env.prod` は gitignore されています
+- VPS 上ではファイル権限を絞って管理してください（例: `chmod 600 deploy/.env.prod`）
