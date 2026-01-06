@@ -33,3 +33,6 @@ TestResults/
 
 # Logs
 *.log
+
+# Local learning / scratch projects (do not commit)
+tests/MyUnit/

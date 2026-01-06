@@ -36,6 +36,7 @@ public sealed class PostgresApiFactory : IAsyncLifetime
 
         var connectionString = _postgres.GetConnectionString();
 
+        // 現在の環境変数を退避させておく
         _previousEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
         _previousConnectionString = Environment.GetEnvironmentVariable("ConnectionStrings__Default");
         _previousJwtIssuer = Environment.GetEnvironmentVariable("Jwt__Issuer");
@@ -43,6 +44,7 @@ public sealed class PostgresApiFactory : IAsyncLifetime
         _previousJwtSigningKey = Environment.GetEnvironmentVariable("Jwt__SigningKey");
         _previousJwtAccessTokenMinutes = Environment.GetEnvironmentVariable("Jwt__AccessTokenMinutes");
 
+        // 環境変数をテスト用に設定
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Testing");
         Environment.SetEnvironmentVariable("ConnectionStrings__Default", connectionString);
         Environment.SetEnvironmentVariable("Jwt__Issuer", "http://localhost");
@@ -65,6 +67,7 @@ public sealed class PostgresApiFactory : IAsyncLifetime
     {
         Factory?.Dispose();
 
+        // 環境変数を元に戻す
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", _previousEnvironment);
         Environment.SetEnvironmentVariable("ConnectionStrings__Default", _previousConnectionString);
         Environment.SetEnvironmentVariable("Jwt__Issuer", _previousJwtIssuer);
